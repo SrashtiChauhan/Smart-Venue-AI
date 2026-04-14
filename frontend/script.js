@@ -19,13 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Venue Data for Intelligent Responses
     const venueData = {
         gates: [
-            { name: "Gate A", crowd: "high", score: 3, clearingTime: 10 },
-            { name: "Gate B", crowd: "low", score: 1, clearingTime: 5 },
-            { name: "Gate C", crowd: "medium", score: 2, clearingTime: 8 }
+            { name: "Gate A", crowd: "high", score: 3, clearingTime: 10, location: "near the north plaza" },
+            { name: "Gate B", crowd: "low", score: 1, clearingTime: 5, location: "near the main entrance on the east side of the stadium" },
+            { name: "Gate C", crowd: "medium", score: 2, clearingTime: 8, location: "at the south end, close to the parking lot" }
         ],
         foodStalls: [
-            { name: "Food Stall A", waitTime: 15 },
-            { name: "Food Stall B", waitTime: 5 }
+            { name: "Food Stall A", waitTime: 15, location: "by the upper deck seating area" },
+            { name: "Food Stall B", waitTime: 5, location: "near the central concourse" },
+            { name: "Food Stall C", waitTime: 20, location: "next to the merchandise shop" }
         ]
     };
 
@@ -45,21 +46,76 @@ document.addEventListener('DOMContentLoaded', () => {
         const fastestClearingGate = venueData.gates.reduce((prev, curr) => (prev.clearingTime < curr.clearingTime) ? prev : curr);
         const bestFood = venueData.foodStalls.reduce((prev, curr) => (prev.waitTime < curr.waitTime) ? prev : curr);
         
+        // Explicit Entity Matching
+        let explicitGate = venueData.gates.find(g => lowerMsg.includes(g.name.toLowerCase()));
+        let explicitFood = venueData.foodStalls.find(f => lowerMsg.includes(f.name.toLowerCase()));
+        
+        let targetGate = explicitGate || bestGate;
+        let targetFood = explicitFood || bestFood;
+
         // Explicit Edge Case 1: All crowded inquiries
         if (lowerMsg.includes('all gates are crowded') || lowerMsg.includes('everything is crowded')) {
+             lastContext = "gate";
              return `All gates are currently crowded. I recommend waiting for a few minutes. ${fastestClearingGate.name} is expected to clear in about ${fastestClearingGate.clearingTime} minutes.`;
         }
 
         // Improved Intent Detection
         let wantsGeneral = lowerMsg.includes('where should i go') || lowerMsg.includes('recommend') || lowerMsg.includes('best option');
-        let wantsGate = lowerMsg.includes('gate') || lowerMsg.includes('go') || lowerMsg.includes('entry') || lowerMsg.includes('crowd');
-        let wantsFood = lowerMsg.includes('food') || lowerMsg.includes('eat') || lowerMsg.includes('hungry') || lowerMsg.includes('wait') || lowerMsg.includes('time');
+        let wantsFood = lowerMsg.includes('food') || lowerMsg.includes('eat') || lowerMsg.includes('hungry') || lowerMsg.includes('wait') || lowerMsg.includes('time') || lowerMsg.includes('stall');
+        
+        let wantsGate = lowerMsg.includes('gate') || lowerMsg.includes('go') || lowerMsg.includes('entry');
+        if (lowerMsg.includes('crowd') && !wantsFood && !wantsGeneral) {
+            wantsGate = true;
+        }
+
+        // Handle Location Inquiries
+        const cleanMsgLoc = lowerMsg.replace(/[^a-z ]/g, "").trim();
+        const isLocationQuery = ["where is it", "where is that", "location"].includes(cleanMsgLoc) || lowerMsg.includes('where is it') || lowerMsg.includes('where is that') || (lowerMsg.includes('where is') && !lowerMsg.includes('should i go')) || lowerMsg.includes('location');
+        
+        // Fast-path explicit status checks if they aren't asking for location
+        if (!isLocationQuery && explicitGate && !explicitFood) {
+            lastContext = "gate";
+            return `${explicitGate.name} currently has a ${explicitGate.crowd} crowd level.`;
+        }
+        if (!isLocationQuery && explicitFood && !explicitGate) {
+            lastContext = "food";
+            return `The wait time at ${explicitFood.name} is currently ${explicitFood.waitTime} minutes.`;
+        }
+
+        if (isLocationQuery) {
+            if (lastContext === "general" || (wantsGate && wantsFood)) {
+                return `${targetGate.name} is located ${targetGate.location}, and ${targetFood.name} is located ${targetFood.location}.`;
+            } else if (wantsGate || explicitGate || (!wantsFood && lastContext === "gate")) {
+                return `${targetGate.name} is located ${targetGate.location}.`;
+            } else if (wantsFood || explicitFood || (!wantsGate && lastContext === "food")) {
+                return `${targetFood.name} is located ${targetFood.location}.`;
+            } else {
+                return `${targetGate.name} is located ${targetGate.location}, and ${targetFood.name} is located ${targetFood.location}.`;
+            }
+        }
 
         // Handle Conversational Follow-ups using Context
-        const isFollowUp = lowerMsg.includes('and now') || lowerMsg.includes('what about') || lowerMsg.includes('how about');
+        const cleanMsg = lowerMsg.replace(/[^a-z ]/g, "").trim();
+        const isShortFollowUp = ["and now", "now", "what now", "so now"].includes(cleanMsg);
+        const isFollowUp = lowerMsg.includes('what about') || lowerMsg.includes('how about') || isShortFollowUp;
+
         if (isFollowUp && !wantsGate && !wantsFood && !wantsGeneral) {
-             if (lastContext === "gate") wantsGate = true;
-             else if (lastContext === "food") wantsFood = true;
+             if (lastContext === "gate") {
+                 if (isShortFollowUp) {
+                     if (allGatesCrowded) {
+                         return `Right now it's still crowded. I suggest waiting a few minutes. ${fastestClearingGate.name} should clear soon.`;
+                     }
+                     return `Right now, ${bestGate.name} is still your best option for a quick entry!`;
+                 }
+                 wantsGate = true;
+             } else if (lastContext === "food") {
+                 if (isShortFollowUp) {
+                     return `The wait at ${bestFood.name} is still holding at around ${bestFood.waitTime} minutes.`;
+                 }
+                 wantsFood = true;
+             } else if (isShortFollowUp) {
+                 wantsGeneral = true;
+             }
         }
 
         if ((wantsGate && wantsFood) || wantsGeneral) {
