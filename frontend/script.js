@@ -31,6 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let lastContext = "";
 
+    const getRandomResponse = (responses) => {
+        return responses[Math.floor(Math.random() * responses.length)];
+    };
+
     // AI Responses based on keywords and venue data
     const getAiResponse = (message) => {
         const lowerMsg = message.toLowerCase();
@@ -40,48 +44,56 @@ document.addEventListener('DOMContentLoaded', () => {
         const bestGate = venueData.gates.reduce((prev, curr) => (prev.score < curr.score) ? prev : curr);
         const fastestClearingGate = venueData.gates.reduce((prev, curr) => (prev.clearingTime < curr.clearingTime) ? prev : curr);
         const bestFood = venueData.foodStalls.reduce((prev, curr) => (prev.waitTime < curr.waitTime) ? prev : curr);
-
-        if (lowerMsg.includes('gate') || lowerMsg.includes('crowd')) {
-            let prefix = lastContext === "food" ? "Now that you're fed, let's find the best entry! " : "";
-            lastContext = "gate";
-            
-            if (allGatesCrowded) {
-                if (lowerMsg.includes('best') || lowerMsg.includes('fastest') || lowerMsg.includes('recommend') || lowerMsg.includes('which')) {
-                    return `${fastestClearingGate.name} will be less crowded in about ${fastestClearingGate.clearingTime} minutes.`;
-                } else {
-                    return "All gates are currently crowded. You can wait for a few minutes or try after some time.";
-                }
-            }
-
-            return `${prefix}Based on current data, ${bestGate.name} is your best option. It currently has a ${bestGate.crowd} crowd.`;
-        } else if (lowerMsg.includes('food') || lowerMsg.includes('eat') || lowerMsg.includes('wait') || lowerMsg.includes('time') || lowerMsg.includes('hungry')) {
-            let prefix = lastContext === "gate" ? "Great idea to get some food after sorting out your gate! " : "";
-            lastContext = "food";
-            return `${prefix}For the shortest waiting time, I recommend ${bestFood.name}. The current wait is only ${bestFood.waitTime} minutes.`;
-        } else if (lowerMsg.includes('where should i go') || lowerMsg.includes('recommend') || lowerMsg.includes('best option')) {
-            lastContext = "general";
-            
-            if (allGatesCrowded) {
-                return `All gates are highly crowded right now. I'd strongly suggest getting food first since ${bestFood.name} has only a ${bestFood.waitTime} min wait.`;
-            }
-            return `If you are arriving, head to ${bestGate.name} (${bestGate.crowd} crowd). If you're looking for food, go to ${bestFood.name} (${bestFood.waitTime} min wait).`;
-        } else if (lowerMsg.includes('washroom') || lowerMsg.includes('restroom') || lowerMsg.includes('toilet')) {
-            lastContext = "washroom";
-            return "The nearest restrooms are located near Section 104, just down the hall to your right.";
-        } else if (lowerMsg.includes('what about') || lowerMsg.includes('how about')) {
-            if (lastContext === "gate") {
-                lastContext = "food";
-                return `Are you asking about food stalls? Great idea to grab a bite! ${bestFood.name} has the shortest wait (${bestFood.waitTime} mins).`;
-            } else if (lastContext === "food") {
-                lastContext = "gate";
-                return `Are you asking about the gates? For entry, ${bestGate.name} is your best option.`;
-            }
-        }
         
-        if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
+        // Explicit Edge Case 1: All crowded inquiries
+        if (lowerMsg.includes('all gates are crowded') || lowerMsg.includes('everything is crowded')) {
+             return `All gates are currently crowded. I recommend waiting for a few minutes. ${fastestClearingGate.name} is expected to clear in about ${fastestClearingGate.clearingTime} minutes.`;
+        }
+
+        // Improved Intent Detection
+        let wantsGeneral = lowerMsg.includes('where should i go') || lowerMsg.includes('recommend') || lowerMsg.includes('best option');
+        let wantsGate = lowerMsg.includes('gate') || lowerMsg.includes('go') || lowerMsg.includes('entry') || lowerMsg.includes('crowd');
+        let wantsFood = lowerMsg.includes('food') || lowerMsg.includes('eat') || lowerMsg.includes('hungry') || lowerMsg.includes('wait') || lowerMsg.includes('time');
+
+        // Handle Conversational Follow-ups using Context
+        const isFollowUp = lowerMsg.includes('and now') || lowerMsg.includes('what about') || lowerMsg.includes('how about');
+        if (isFollowUp && !wantsGate && !wantsFood && !wantsGeneral) {
+             if (lastContext === "gate") wantsGate = true;
+             else if (lastContext === "food") wantsFood = true;
+        }
+
+        if ((wantsGate && wantsFood) || wantsGeneral) {
+            lastContext = "general";
+            if (allGatesCrowded) {
+                return `All gates are currently crowded. I recommend waiting for a few minutes. ${fastestClearingGate.name} is expected to clear in about ${fastestClearingGate.clearingTime} minutes. For food, ${bestFood.name} has the shortest wait time.`;
+            }
+            return `For entry, ${bestGate.name} is best. For food, ${bestFood.name} has the shortest wait time.`;
+        } else if (wantsGate) {
+            lastContext = "gate";
+            if (allGatesCrowded) {
+                return `All gates are currently crowded. I recommend waiting for a few minutes. ${fastestClearingGate.name} is expected to clear in about ${fastestClearingGate.clearingTime} minutes.`;
+            }
+            const responses = [
+                `Right now, ${bestGate.name} seems like the best option.`,
+                `You can consider ${bestGate.name} as it has lower crowd.`,
+                `${bestGate.name} is currently less crowded.`,
+                `I'd suggest heading to ${bestGate.name} for the quickest entry!`
+            ];
+            return getRandomResponse(responses);
+        } else if (wantsFood) {
+            lastContext = "food";
+            const responses = [
+                `For the shortest waiting time, I recommend ${bestFood.name}. The current wait is only ${bestFood.waitTime} minutes.`,
+                `You should grab a bite at ${bestFood.name}! The line is only about ${bestFood.waitTime} minutes long.`,
+                `Right now, ${bestFood.name} is your best bet with a quick ${bestFood.waitTime} min wait.`
+            ];
+            return getRandomResponse(responses);
+        } else if (lowerMsg.includes('washroom') || lowerMsg.includes('restroom') || lowerMsg.includes('toilet')) {
+            return "The nearest restrooms are located near Section 104. Just head down the hall to your right!";
+        } else if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
             return "Hello there! How can I assist you today? You can ask me about gate crowds, food wait times, or general directions.";
         } else {
-            return "Sorry, I can help with crowd and navigation queries inside the venue.";
+            return "I'm not quite sure I caught that. I can help with crowd info, gate entry, or food stall wait times inside the venue!";
         }
     };
 
