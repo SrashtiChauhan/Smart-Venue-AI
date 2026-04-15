@@ -1,4 +1,4 @@
-# SmartVenue AI Assistant 
+# SmartVenue AI Assistant 🎯
 
 SmartVenue AI is a simple yet intelligent assistant designed to improve the experience of people attending large-scale events like sports matches or concerts.
 
@@ -39,13 +39,14 @@ It can:
 - Deal with edge cases like *“all gates are crowded”*  
 - Maintain conversation context like a real assistant  
 
-👉 It behaves more like a **decision-making assistant** than a simple bot.
+👉 It behaves more like a **decision-making assistant** than a simple bot.  
+👉 The assistant not only answers questions but actively helps users make better real-time decisions.
 
 ---
 
 ## ⚙️ Tech Stack
 
-- Google Antigravity (prompt-driven AI logic) 
+- Google Antigravity (prompt-driven AI logic)  
 - HTML  
 - CSS  
 - JavaScript  
@@ -71,6 +72,34 @@ Everything is lightweight and runs smoothly without any backend.
 - ⏱️ Queue and waiting time guidance  
 - 🔄 Follow-up understanding (like “now?”, “what about food?”)  
 - 📍 Location-based responses  
+- 🎯 Decision-based recommendations instead of static responses  
+
+---
+
+## 🧪 Testing
+
+The application was tested with multiple scenarios including:
+
+- Basic queries (gate and food suggestions)  
+- Ambiguous queries (e.g., "now?", "where is it?")  
+- Edge cases (e.g., "all gates are crowded")  
+- Context-based follow-ups  
+
+All responses were validated to ensure logical correctness and consistency.
+
+---
+
+## ♿ Accessibility
+
+The interface is designed to be simple, readable, and user-friendly across devices.
+
+---
+
+## ☁️ Google Services Usage
+
+This project was built using Google Antigravity, leveraging prompt-driven development to design and implement the application logic efficiently.
+
+Future enhancements include integration with Google Gemini API for advanced AI capabilities.
 
 ---
 
@@ -88,6 +117,12 @@ Everything is lightweight and runs smoothly without any backend.
 - Crowd and waiting time data are simulated  
 - No real-time sensors or APIs are used  
 - The goal is to demonstrate logic and decision-making  
+
+---
+
+## 🔒 Security
+
+This application does not store or process any personal user data, ensuring a safe and privacy-friendly experience.
 
 ---
 
